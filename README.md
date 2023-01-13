@@ -20,7 +20,8 @@ Step 4: Save synonyms of each entity for later use
 
 
 ## Usage
-1. Put your own data files containing medical entities you are interested in "Corpus" folder. \
-2. Put your own pretrained word embedding file in "WordEmbeddings" folder. \
+1. Put your own data files containing medical entities you are interested in "Corpus" folder. 
+2. Put your own pretrained word embedding file in "WordEmbeddings" folder. 
 3. Specify parameters like threshold, max_num
-4. Execute "generate_synonyms.py"
+4. Execute command like:  
+python generate_synonyms.py --word_emd_path "WordEmbeddings/..." --emd_size 512 --data_path "Corpus/..." --save_dir "Synonym" 

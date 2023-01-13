@@ -7,6 +7,7 @@ from numpy.linalg import norm
 from tqdm import tqdm
 import json
 import os
+import argparse
 
 '''
 This script is to find synonyms for medical entities based on pretrained embeddings.
@@ -124,40 +125,60 @@ def load_embedding_file(emd_file, entity_dict=None, emd_dim=512, sep=' '):
         return word_emds
 
 
-def load_entity_from_file(banned_types, *data_files):
+def load_entity_from_file(datafile, banned_types=[]):
     """
-    load medical entities from multiple json files;
+    load medical entities from json files;
     this function needs to be revised according to your file format
+    :param datafile: data path
     :param banned_types: a list of entity types that need to be filtered
-    :param data_files: a list of files (in json format)
     :return: a list of entities in tuple (entity, entity_type)
     """
     entity_list = []
-    for filename in data_files:
-        with open(filename, 'r', encoding='utf-8') as fr:
-            samples = json.load(fr)
-            for sample in samples:
-                entities = sample['entities']
-                for entity in entities:
-                    if entity['type'] not in banned_types:
-                        entity_list.append((entity['entity'], entity['type']))
+    with open(datafile, 'r', encoding='utf-8') as fr:
+        samples = json.load(fr)
+        for sample in samples:
+            for entity in sample['entities']:
+                if entity['type'] not in banned_types:
+                    entity_list.append((entity['entity'], entity['type']))
 
     entity_set = set(entity_list)
     print(f'{len(entity_set)} entities are loaded.')
     return list(entity_set)
 
+# python generate_synonyms.py --word_emd_path "WordEmbeddings/..." --emd_size 512 --data_path "Corpus/..." --save_dir "Synonym"
 
 if __name__ == '__main__':
-    entities = load_entity_from_file(['sym'], 'Corpus/CMeEE_train.json', 'Corpus/CMeEE_dev.json')
-    emd_dict = load_embedding_file(emd_file="WordEmbeddings/medical_embeddings.txt",
-                                   entity_dict=dict(entities),
-                                   emd_dim=512,
-                                   sep=' ')
-    threshold = 0.7
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--word_emd_path', type=str, required=True,
+                        help='File path of pretrained Word Embeddings.')
+    parser.add_argument('--emd_size', type=int, required=True,
+                        help='Embedding dimension of the word embeddings.')
+    parser.add_argument('--sep', type=str, default=' ',
+                        help='Separator used in word_emd_path.')
+    parser.add_argument('--data_path', type=str, default=None,
+                        help='File path of corpus data containing entities that you are interested. If \
+                             not specified, then all entities in the word_emd_path are calculated.')
+    parser.add_argument('--simi_thrd', type=float, default=0.7,
+                        help='Similarity threshold for becoming a synonym.')
+    parser.add_argument('--max_syno_num', type=int, default=4,
+                        help='Maximum number of synonyms to choose for a given word.')
+    parser.add_argument('--save_dir', type=str, required=True,
+                        help='Directory to save the synonyms.')
+
+    args = parser.parse_args()
+
+    entities = None
+    if args.data_path is not None:
+        entities = load_entity_from_file(args.data_path)
+
+    emd_dict = load_embedding_file(emd_file=args.word_emd_path,
+                                   entity_dict=dict(entities) if entities is not None else None,
+                                   emd_dim=args.emd_size,
+                                   sep=args.sep)
     synonym_dict = calculate_word_embedding_similarity(word_emd_dict=emd_dict,
-                                                       threshold=threshold,
-                                                       max_num=4)
-    save_synonym_dict(filename=f'Synonym/medical_synonyms_{threshold}.txt',
+                                                       threshold=args.simi_thrd,
+                                                       max_num=args.max_syno_num)
+    save_synonym_dict(filename=f'{args.save_dir}/medical_synonyms_{args.simi_thrd}.txt',
                       synonym_dict=synonym_dict,
                       sep=' ')
     # show results
